@@ -531,8 +531,7 @@ function getcookie(req, name, secrets) {
   raw = cookies[name];
   const value = raw;
   // decrypt 
-  value = utility.base64decode(value, true, 'buffer');
-  const res = gKeyHandle.decrypt(value);
+  const res = gKeyHandle.decrypt(utility.base64decode(value, true, 'buffer'));
   return res ? res.value.toString() : undefined;
 }
 
@@ -623,7 +622,7 @@ function issecure(req, trustProxy) {
  */
 
 function setcookie(res, name, val, secret, options) {
-  const value = val && utility.base64encode(keyHandle.encrypt(val), true);
+  const value = val && utility.base64encode(gKeyHandle.encrypt(val), true);
   var data = cookie.serialize(name, value, options);
 
   debug('set-cookie %s', data);
