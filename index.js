@@ -536,6 +536,7 @@ function getcookie(req, name, secrets) {
     // new Buffer(string, 'base64') does not seem to crash
     // when `string` is not base64-encoded.
     // but `JSON.parse(string)` will crash.
+    debug(`decode error ${raw}`);
     debug('decode %j error: %s',  err);
     // 解释session失败 直接返回undefined
     return val;
