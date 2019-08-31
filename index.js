@@ -27,7 +27,7 @@ var Cookie = require('./session/cookie')
 var MemoryStore = require('./session/memory')
 var Session = require('./session/session')
 var Store = require('./session/store')
-
+var Utils =  require('./session/utils');
 // environment
 
 var env = process.env.NODE_ENV;
@@ -222,8 +222,8 @@ function session(options) {
         debug('no session');
         return;
       }
-
-      if (!shouldSetCookie(req)) {
+      // 这个session 不需要set cookies。 超时后重新登录
+      if (true || !shouldSetCookie(req)) {
         return;
       }
 
@@ -516,62 +516,53 @@ function generateSessionId(sess) {
  */
 
 function getcookie(req, name, secrets) {
-  var header = req.headers.cookie;
-  var raw;
+  const header = req.headers.cookie;
+  let raw;
   var val;
-
+  if (!header) {
+    return val;
+  }
   // read from cookie header
-  if (header) {
-    var cookies = cookie.parse(header);
+  var cookies = cookie.parse(header);
 
-    raw = cookies[name];
+  raw = cookies[name];
+  let json;
+  try {
+    // 解密session
+    json = Utils.decode(raw);
+  } catch (err) {
+    // backwards compatibility:
+    // create a new session if parsing fails.
+    // new Buffer(string, 'base64') does not seem to crash
+    // when `string` is not base64-encoded.
+    // but `JSON.parse(string)` will crash.
+    debug('decode %j error: %s',  err);
+    // 解释session失败 直接返回undefined
+    return val;
+  }
+  if (!valid(json)) {
+    return val;
+  }
+  return raw;
+}
 
-    if (raw) {
-      if (raw.substr(0, 2) === 's:') {
-        val = unsigncookie(raw.slice(2), secrets);
-
-        if (val === false) {
-          debug('cookie signature invalid');
-          val = undefined;
-        }
-      } else {
-        debug('cookie unsigned')
-      }
-    }
+/**
+ * verify session(expired or )
+ * @param  {Object} value session object
+ * @param  {Object} key session externalKey(optional)
+ * @return {Boolean} valid
+ * @api private
+ */
+function valid(value, key) {
+  if (!value) {
+    return false;
   }
 
-  // back-compat read from cookieParser() signedCookies data
-  if (!val && req.signedCookies) {
-    val = req.signedCookies[name];
-
-    if (val) {
-      deprecate('cookie should be available in req.headers.cookie');
-    }
+  if (value._expire && value._expire < Date.now()) {
+    debug('expired session');
+    return false;
   }
-
-  // back-compat read from cookieParser() cookies data
-  if (!val && req.cookies) {
-    raw = req.cookies[name];
-
-    if (raw) {
-      if (raw.substr(0, 2) === 's:') {
-        val = unsigncookie(raw.slice(2), secrets);
-
-        if (val) {
-          deprecate('cookie should be available in req.headers.cookie');
-        }
-
-        if (val === false) {
-          debug('cookie signature invalid');
-          val = undefined;
-        }
-      } else {
-        debug('cookie unsigned')
-      }
-    }
-  }
-
-  return val;
+  return true;
 }
 
 /**
@@ -651,24 +642,4 @@ function setcookie(res, name, val, secret, options) {
   var header = Array.isArray(prev) ? prev.concat(data) : [prev, data];
 
   res.setHeader('Set-Cookie', header)
-}
-
-/**
- * Verify and decode the given `val` with `secrets`.
- *
- * @param {String} val
- * @param {Array} secrets
- * @returns {String|Boolean}
- * @private
- */
-function unsigncookie(val, secrets) {
-  for (var i = 0; i < secrets.length; i++) {
-    var result = signature.unsign(val, secrets[i]);
-
-    if (result !== false) {
-      return result;
-    }
-  }
-
-  return false;
 }
