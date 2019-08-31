@@ -22,12 +22,11 @@ var onHeaders = require('on-headers')
 var parseUrl = require('parseurl');
 var uid = require('uid-safe').sync;
 var Keygrip = require('./session/keygrip');
-
+var utility = require('utility');
 var Cookie = require('./session/cookie')
 var MemoryStore = require('./session/memory')
 var Session = require('./session/session')
 var Store = require('./session/store')
-var Utils =  require('./session/utils');
 // environment
 
 var env = process.env.NODE_ENV;
