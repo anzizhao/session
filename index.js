@@ -215,7 +215,7 @@ function session(options) {
 
     // get the session ID from the cookie
     var cookieId = req.sessionID = getcookie(req, name, secrets);
-
+    debug(`cookieId: ${cookieId}, sessionID: ${req.sessionID}`);
     // set-cookie
     onHeaders(res, function(){
       if (!req.session) {
@@ -540,6 +540,7 @@ function getcookie(req, name, secrets) {
     // 解释session失败 直接返回undefined
     return val;
   }
+  debug(`getcookie raw: ${raw}, json: ${JSON.stringify(json)}`);
   if (!valid(json)) {
     return val;
   }
