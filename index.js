@@ -20,8 +20,8 @@ var debug = require('debug')('express-session');
 var deprecate = require('depd')('express-session');
 var onHeaders = require('on-headers')
 var parseUrl = require('parseurl');
-var uid = require('uid-safe').sync
-const Keygrip = require('./keygrip');
+var uid = require('uid-safe').sync;
+var Keygrip = require('./session/keygrip');
 
 var Cookie = require('./session/cookie')
 var MemoryStore = require('./session/memory')
