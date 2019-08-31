@@ -20,8 +20,8 @@ var debug = require('debug')('express-session');
 var deprecate = require('depd')('express-session');
 var onHeaders = require('on-headers')
 var parseUrl = require('parseurl');
-var signature = require('cookie-signature')
 var uid = require('uid-safe').sync
+const Keygrip = require('./keygrip');
 
 var Cookie = require('./session/cookie')
 var MemoryStore = require('./session/memory')
@@ -66,6 +66,8 @@ var defer = typeof setImmediate === 'function'
   ? setImmediate
   : function(fn){ process.nextTick(fn.bind.apply(fn, arguments)) }
 
+
+let gKeyHandle = null;
 /**
  * Setup session store with the given `options`.
  *
@@ -114,6 +116,7 @@ function session(options) {
   // get the cookie signing secret
   var secret = opts.secret
 
+  gKeyHandle = new Keygrip([secret]);
   if (typeof generateId !== 'function') {
     throw new TypeError('genid option must be a function');
   }
@@ -525,27 +528,13 @@ function getcookie(req, name, secrets) {
   // read from cookie header
   var cookies = cookie.parse(header);
 
+  // encrypted id 
   raw = cookies[name];
-  let json;
-  try {
-    // 解密session
-    json = Utils.decode(raw);
-  } catch (err) {
-    // backwards compatibility:
-    // create a new session if parsing fails.
-    // new Buffer(string, 'base64') does not seem to crash
-    // when `string` is not base64-encoded.
-    // but `JSON.parse(string)` will crash.
-    debug(`decode error ${raw}`);
-    debug('decode %j error: %s',  err);
-    // 解释session失败 直接返回undefined
-    return val;
-  }
-  debug(`getcookie raw: ${raw}, json: ${JSON.stringify(json)}`);
-  if (!valid(json)) {
-    return val;
-  }
-  return raw;
+  const value = raw;
+  // decrypt 
+  value = utility.base64decode(value, true, 'buffer');
+  const res = gKeyHandle.decrypt(value);
+  return res ? res.value.toString() : undefined;
 }
 
 /**
@@ -635,8 +624,8 @@ function issecure(req, trustProxy) {
  */
 
 function setcookie(res, name, val, secret, options) {
-  var signed = 's:' + signature.sign(val, secret);
-  var data = cookie.serialize(name, signed, options);
+  const value = val && utility.base64encode(keyHandle.encrypt(val), true);
+  var data = cookie.serialize(name, value, options);
 
   debug('set-cookie %s', data);
 
