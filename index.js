@@ -519,7 +519,6 @@ function generateSessionId(sess) {
 
 function getcookie(req, name, secrets) {
   const header = req.headers.cookie;
-  let raw;
   var val;
   if (!header) {
     return val;
@@ -528,8 +527,10 @@ function getcookie(req, name, secrets) {
   var cookies = cookie.parse(header);
 
   // encrypted id 
-  raw = cookies[name];
-  const value = raw;
+  const value = cookies[name];
+  if (!value) {
+    return undefined;
+  }
   // decrypt 
   const res = gKeyHandle.decrypt(utility.base64decode(value, true, 'buffer'));
   return res ? res.value.toString() : undefined;
